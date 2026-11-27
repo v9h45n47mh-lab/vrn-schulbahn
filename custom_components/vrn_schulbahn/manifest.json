@@ -1,0 +1,9 @@
+{
+  "domain": "vrn_schulbahn",
+  "name": "VRN Schulbahn",
+  "version": "1.0.0",
+  "documentation": "https://opendata.vrn.de/datasets/open-service-rapidjson-schnittstelle",
+  "dependencies": ["calendar"],
+  "codeowners": [],
+  "iot_class": "cloud_polling"
+}

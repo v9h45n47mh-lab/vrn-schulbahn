@@ -1,0 +1,3 @@
+refresh:
+  name: VRN-Daten aktualisieren
+  description: Ruft die konfigurierten Verbindungen für heute ab.
