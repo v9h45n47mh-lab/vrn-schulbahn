@@ -8,17 +8,21 @@ Abruffehler bleiben vorherige Ergebnisse mit ihrem Zeitstempel sichtbar.
 
 ## Installation
 
-1. Kopiere `custom_components/vrn_schulbahn` nach `/config/custom_components/`
-   und `www/vrn-schulbahn-card.js` nach `/config/www/`.
-2. Ergänze die Integration in `configuration.yaml` und ersetze die
-   Platzhalter für die VRN-Haltestellen-IDs durch die numerischen IDs deiner Verbindung
-   und die beispielhaften Kalender-IDs durch die Entitäten aus deinem Home Assistant.
-   Die Kalender dürfen ausschließlich schulfreie Tage enthalten.
-3. Starte Home Assistant neu. Registriere unter **Einstellungen → Dashboards →
-   Ressourcen** die URL `/local/vrn-schulbahn-card.js?v=1.0.0` als
-   **JavaScript-Modul**. Bei YAML-Ressourcen trage dieselbe URL mit
-   `type: module` ein.
-4. Füge die manuelle Dashboardkarte mit der unten stehenden Konfiguration hinzu.
+1. Öffne **HACS → ⋮ → Benutzerdefinierte Repositorys**. Füge
+   `https://github.com/v9h45n47mh-lab/vrn-schulbahn` mit der Kategorie
+   **Integration** hinzu und lade **VRN Schulbahn** herunter.
+2. Ergänze den Abschnitt **Integration** unten in deiner `configuration.yaml`.
+   Setze deine VRN-Haltestellen-IDs und die vorhandenen Kalender-Entitäten ein.
+   Verwende Kalender, die ausschließlich schulfreie Tage enthalten.
+3. Starte Home Assistant neu.
+4. Registriere unter **Einstellungen → Dashboards → ⋮ → Ressourcen** die URL
+   `/vrn_schulbahn/vrn-schulbahn-card.js` als **JavaScript-Modul**.
+   Bei Ressourcen im YAML-Modus verwende dieselbe URL mit `type: module`.
+   Wenn du von der manuellen Installation wechselst, ersetze den bisherigen
+   Eintrag `/local/vrn-schulbahn-card.js` durch diese URL.
+5. Füge die manuelle Dashboard-Karte mit der unten stehenden Konfiguration hinzu.
+
+HACS installiert und aktualisiert die Integration zusammen mit der JavaScript-Datei.
 
 ### Integration
 

@@ -2,11 +2,13 @@
 import asyncio
 from datetime import datetime, time, timedelta
 import logging
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import aiohttp
 import voluptuous as vol
 
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -118,6 +120,13 @@ async def async_setup(hass, config):
     async def manual_refresh(_call):
         await refresh(dt_util.now(), manual=True)
 
+    await hass.http.async_register_static_paths([
+        StaticPathConfig(
+            "/vrn_schulbahn/vrn-schulbahn-card.js",
+            str(Path(__file__).with_name("vrn-schulbahn-card.js")),
+            False,
+        ),
+    ])
     publish("idle")
     hass.services.async_register(DOMAIN, "refresh", manual_refresh)
     async_track_time_change(hass, scheduled, second=0)
