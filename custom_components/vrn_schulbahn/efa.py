@@ -1,5 +1,5 @@
-"""Parse direct journeys from the VRN EFA response."""
-from datetime import datetime
+"""Parse journeys from the VRN EFA response."""
+from datetime import datetime, timezone
 from html.parser import HTMLParser
 
 
@@ -27,65 +27,81 @@ def messages(leg, journey):
     return result
 
 
-def stop_id(point):
-    return str(point.get("parent", {}).get("properties", {}).get("stopId")
-               or point.get("properties", {}).get("stopId") or point.get("id", ""))
+
+def cancelled(part):
+    return part.get("isCancelled") is True or str(
+        part.get("realtimeStatus", "")
+    ).lower() in {"cancelled", "canceled"}
 
 
-def clock(value, zone):
-    return datetime.fromisoformat(value).astimezone(zone)
+def timestamp(value):
+    return datetime.fromisoformat(value).astimezone(timezone.utc) if value else None
 
 
-def select_journeys(payload, day, zone, origin, destination, line, times, tolerance):
-    if not isinstance(payload.get("journeys"), list):
-        raise ValueError("VRN hat keine auswertbare Fahrtenliste geliefert")
-    candidates = []
-    for journey in payload["journeys"]:
-        legs = journey.get("legs", [])
-        if len(legs) != 1:
-            continue
-        leg = legs[0]
-        start, end = leg["origin"], leg["destination"]
-        if (stop_id(start), stop_id(end), leg.get("transportation", {}).get("number")) != (
-                origin, destination, line):
-            continue
-        scheduled = start.get("departureTimeBaseTimetable") or start.get("departureTimePlanned")
-        if not scheduled:
-            continue
-        departure = clock(scheduled, zone)
-        if departure.date() != day:
-            continue
-        planned = start.get("departureTimePlanned") or scheduled
-        estimate = start.get("departureTimeEstimated")
-        realtime = bool(estimate and (leg.get("isRealtimeControlled") or estimate != planned))
-        cancelled = any(part.get("isCancelled") is True or
-                        str(part.get("realtimeStatus", "")).lower() in {"cancelled", "canceled"}
-                        for part in (journey, leg, start, end))
-        predicted = clock(estimate, zone) if realtime else None
-        arrival = end.get("arrivalTimeEstimated") if realtime else None
-        candidates.append((departure.hour * 60 + departure.minute, {
-            "scheduled": departure.strftime("%H:%M"),
-            "planned": clock(planned, zone).strftime("%H:%M"),
-            "estimated": predicted.strftime("%H:%M") if predicted else None,
-            "delay": round((predicted - departure).total_seconds() / 60) if predicted else None,
-            "arrival": clock(arrival or end["arrivalTimePlanned"], zone).strftime("%H:%M")
-            if arrival or end.get("arrivalTimePlanned") else None,
-            "platform": start.get("properties", {}).get("platformName"),
-            "planned_platform": start.get("properties", {}).get("plannedPlatformName"),
-            "cancelled": cancelled,
-            "messages": messages(leg, journey),
-        }))
-    remaining = set(range(len(candidates)))
-    matches = {}
-    pairs = []
-    for requested in times:
-        hour, minute = map(int, requested.split(":"))
-        for index, (actual, _) in enumerate(candidates):
-            distance = abs(actual - hour * 60 - minute)
-            if distance <= tolerance:
-                pairs.append((distance, requested, index))
-    for _, requested, index in sorted(pairs):
-        if requested not in matches and index in remaining:
-            matches[requested] = candidates[index][1]
-            remaining.remove(index)
-    return [{"requested": time, **matches.get(time, {})} for time in times]
+def itinerary_key(legs):
+    return tuple(
+        (leg.get("transportation", {}).get("id"),
+         leg.get("transportation", {}).get("properties", {}).get("tripCode"),
+         leg["origin"].get("id"), leg["destination"].get("id"),
+         leg["origin"].get("departureTimeBaseTimetable")
+         or leg["origin"].get("departureTimePlanned"))
+        for leg in legs
+    )
+
+
+def select_journeys(payloads, start, end, zone):
+    rows = {}
+    for payload in payloads:
+        journeys = payload.get("journeys")
+        if not isinstance(journeys, list):
+            raise ValueError("VRN hat keine auswertbare Fahrtenliste geliefert")
+        for journey in journeys:
+            legs = journey.get("legs", [])
+            transit = [leg for leg in legs if leg.get("transportation", {}).get("number")]
+            if not transit:
+                continue
+
+            first = transit[0]
+            origin = first["origin"]
+            destination = legs[-1]["destination"]
+            planned = timestamp(origin.get("departureTimePlanned"))
+            scheduled = timestamp(origin.get("departureTimeBaseTimetable")) or planned
+            if scheduled is None:
+                continue
+
+            estimate = timestamp(origin.get("departureTimeEstimated"))
+            prediction = estimate if first.get("isRealtimeControlled") or estimate != planned else None
+            is_cancelled = cancelled(journey) or any(
+                cancelled(part) for leg in transit for part in (leg, leg["origin"], leg["destination"])
+            )
+            departure = (planned or scheduled) if is_cancelled else (prediction or planned or scheduled)
+
+            arrival = timestamp(destination.get("arrivalTimeEstimated") or destination.get("arrivalTimePlanned"))
+            alerts = list(dict.fromkeys(message for leg in legs for message in messages(leg, journey)))
+            key = itinerary_key(transit)
+            previous = rows.get(key)
+            if previous:
+                alerts = list(dict.fromkeys([*previous["messages"], *alerts]))
+            properties = origin.get("properties", {})
+            row = {
+                "lines": [leg["transportation"]["number"] for leg in transit],
+                "scheduled": scheduled.astimezone(zone).strftime("%H:%M"),
+                "planned": (planned or scheduled).astimezone(zone).strftime("%H:%M"),
+                "estimated": prediction.astimezone(zone).strftime("%H:%M") if prediction else None,
+                "delay": round((prediction - scheduled).total_seconds() / 60) if prediction else None,
+                "arrival": arrival.astimezone(zone).strftime("%H:%M") if arrival else None,
+                "platform": properties.get("platformName"),
+                "planned_platform": properties.get("plannedPlatformName"),
+                "cancelled": is_cancelled,
+                "messages": alerts,
+                "departure": departure.isoformat(),
+            }
+            if previous and (previous["cancelled"] or
+                             (previous["estimated"] and not prediction and not is_cancelled)):
+                previous["messages"] = alerts
+            else:
+                rows[key] = row
+    return sorted(
+        (row for row in rows.values() if start <= timestamp(row["departure"]) <= end),
+        key=lambda row: row["departure"],
+    )

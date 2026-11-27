@@ -1,9 +1,9 @@
 # VRN Schulbahn für Home Assistant
 
-Lovelace-Karte und serverseitige Integration für direkte VRN-Verbindungen.
+Lovelace-Karte und serverseitige Integration für VRN-Verbindungen im nächsten 60-Minuten-Fenster.
 Die Karte zeigt Sollzeit, Echtzeitprognose, Verspätung, Gleis und vom VRN
 mitgelieferte Verbindungswarnungen. Ein expliziter Ausfall wird als solcher
-markiert. Fehlt eine Fahrt im Ergebnis, bleibt ihr Status offen. Bei einem
+markiert. Bei einem
 Abruffehler bleiben vorherige Ergebnisse mit ihrem Zeitstempel sichtbar.
 
 ## Installation
@@ -28,9 +28,6 @@ eingetragen hast, kannst du diesen Eintrag nach dem Update entfernen.
 vrn_schulbahn:
   origin: "START_HALTESTELLEN_ID"
   destination: "ZIEL_HALTESTELLEN_ID"
-  line: S3
-  departure_times: ["07:05", "07:25"]
-  tolerance_minutes: 2
   school_free_calendars:
     - calendar.schulferien_und_feiertage
     - calendar.schulfrei
@@ -46,11 +43,15 @@ route: Startbahnhof → Zielbahnhof
 
 Der automatische Abruf läuft montags bis freitags jede Minute von 06:30 bis
 07:30 Uhr einschließlich (Europe/Berlin), auch bei geschlossenem Dashboard.
-Kalendereinträge für den jeweiligen Tag unterdrücken den Abruf. Der Button
-**Aktualisieren** ruft an jedem Tag die konfigurierten Fahrten für heute ab.
-
-Mit `tolerance_minutes` legst du fest, wie weit die Sollzeit von der
-Wunschzeit abweichen darf. Bei einer Abweichung zeigt die Karte beide Zeiten.
+Kalendereinträge für den jeweiligen Tag unterdrücken den automatischen Abruf.
+Außerhalb dieses Zeitfensters aktualisiert das Rundpfeil-Symbol die Karte.
+Jeder Abruf zeigt die vom VRN gelieferten Verbindungen ab Abrufzeitpunkt
+bis eine Stunde danach, einschließlich Verbindungen mit Umstieg.
+Bei Verspätung zählt die prognostizierte Abfahrtszeit. Beispiel: Plan 07:01,
+Prognose 07:15, Abruf 07:10. Die Karte zeigt 07:15 und +14 min.
+Die VRN-Abfragen gehen bis zu einer Stunde in die Vergangenheit zurück, um
+verspätete Fahrten zu finden. Ältere YAML-Felder `line`, `departure_times`
+und `tolerance_minutes` werden weiterhin akzeptiert und nicht ausgewertet.
 
 Datenquelle ist der [VRN Open Service](https://opendata.vrn.de/datasets/open-service-rapidjson-schnittstelle).
 Verfügbarkeit der Prognosen und Meldungen hängt von den VRN-Daten ab.
