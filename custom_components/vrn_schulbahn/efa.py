@@ -76,7 +76,19 @@ def select_journeys(payloads, start, end, zone):
             )
             departure = (planned or scheduled) if is_cancelled else (prediction or planned or scheduled)
 
-            arrival = timestamp(destination.get("arrivalTimeEstimated") or destination.get("arrivalTimePlanned"))
+            arrival_planned = timestamp(destination.get("arrivalTimePlanned"))
+            arrival_scheduled = timestamp(destination.get("arrivalTimeBaseTimetable")) or arrival_planned
+            arrival_estimate = timestamp(destination.get("arrivalTimeEstimated"))
+            arrival_prediction = (
+                arrival_estimate
+                if legs[-1].get("isRealtimeControlled") or arrival_estimate != arrival_planned
+                else None
+            )
+            arrival = arrival_prediction or arrival_planned or arrival_scheduled
+            arrival_delay = (
+                round((arrival_prediction - arrival_scheduled).total_seconds() / 60)
+                if arrival_prediction and arrival_scheduled else None
+            )
             alerts = list(dict.fromkeys(message for leg in legs for message in messages(leg, journey)))
             key = itinerary_key(transit)
             previous = rows.get(key)
@@ -90,6 +102,7 @@ def select_journeys(payloads, start, end, zone):
                 "estimated": prediction.astimezone(zone).strftime("%H:%M") if prediction else None,
                 "delay": round((prediction - scheduled).total_seconds() / 60) if prediction else None,
                 "arrival": arrival.astimezone(zone).strftime("%H:%M") if arrival else None,
+                "arrival_delay": arrival_delay,
                 "platform": properties.get("platformName"),
                 "planned_platform": properties.get("plannedPlatformName"),
                 "cancelled": is_cancelled,

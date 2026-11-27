@@ -19,7 +19,7 @@ from homeassistant.util import dt as dt_util
 from .efa import select_journeys
 
 DOMAIN = "vrn_schulbahn"
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 FRONTEND_URL = "/vrn_schulbahn"
 CARD_URL = f"{FRONTEND_URL}/vrn-schulbahn-card.js"
 SENSOR = "sensor.vrn_schulbahn"

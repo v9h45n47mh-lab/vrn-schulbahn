@@ -7,23 +7,30 @@ const clock = new Intl.DateTimeFormat("de-DE", {
 });
 const formatTime = (value) => clock.format(new Date(value));
 
+function delayLabel(minutes) {
+  return `${minutes > 0 ? "+" : ""}${minutes} min`;
+}
+
 function journeyRow(trip) {
   const time = trip.estimated ?? trip.planned;
-  const title = `${time} · ${trip.lines.join(" → ")}`;
+  const title = `Abfahrt ${time} · ${trip.lines.join(" → ")}`;
   const description = [];
-  if (time !== trip.scheduled) description.push(`Plan ${trip.scheduled}`);
-  if (trip.arrival && !trip.cancelled) description.push(`Ankunft ${trip.arrival}`);
+  if (time !== trip.scheduled) description.push(`Abfahrt geplant ${trip.scheduled}`);
+  if (trip.arrival && !trip.cancelled) {
+    const arrivalStatus = trip.arrival_delay == null ? "Fahrplan"
+      : trip.arrival_delay === 0 ? "pünktlich" : delayLabel(trip.arrival_delay);
+    description.push(`Ankunft ${trip.arrival} (${arrivalStatus})`);
+  }
   if (trip.platform && !trip.cancelled) description.push(`Gleis ${trip.platform}`);
   if (trip.lines.length > 1) {
     const changes = trip.lines.length - 1;
     description.push(changes === 1 ? "1 Umstieg" : `${changes} Umstiege`);
   }
 
-  let status = feedback("Keine Echtzeitdaten");
+  let status = feedback("Abfahrt: keine Prognose");
   if (trip.cancelled) status = feedback("Fällt aus", { kind: "error" });
-  else if (trip.delay > 0) status = feedback(`+${trip.delay} min`, { kind: "warning" });
-  else if (trip.delay < 0) status = feedback(`${trip.delay} min`, { kind: "warning" });
-  else if (trip.delay === 0) status = feedback("Pünktlich", { kind: "success" });
+  else if (trip.delay === 0) status = feedback("Abfahrt pünktlich", { kind: "success" });
+  else if (trip.delay != null) status = feedback(`Abfahrt ${delayLabel(trip.delay)}`, { kind: "warning" });
 
   const warnings = [...trip.messages];
   if (!trip.cancelled && trip.platform && trip.planned_platform && trip.platform !== trip.planned_platform) {
