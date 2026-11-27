@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 import aiohttp
 import voluptuous as vol
 
+from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.helpers import config_validation as cv
@@ -18,6 +19,8 @@ from homeassistant.util import dt as dt_util
 from .efa import select_journeys
 
 DOMAIN = "vrn_schulbahn"
+VERSION = "1.0.2"
+CARD_URL = "/vrn_schulbahn/vrn-schulbahn-card.js"
 SENSOR = "sensor.vrn_schulbahn"
 URL = "https://trias.vrn.de/vrn/XML_TRIP_REQUEST2"
 ZONE = ZoneInfo("Europe/Berlin")
@@ -122,11 +125,12 @@ async def async_setup(hass, config):
 
     await hass.http.async_register_static_paths([
         StaticPathConfig(
-            "/vrn_schulbahn/vrn-schulbahn-card.js",
+            CARD_URL,
             str(Path(__file__).with_name("vrn-schulbahn-card.js")),
             False,
         ),
     ])
+    add_extra_js_url(hass, f"{CARD_URL}?v={VERSION}")
     publish("idle")
     hass.services.async_register(DOMAIN, "refresh", manual_refresh)
     async_track_time_change(hass, scheduled, second=0)

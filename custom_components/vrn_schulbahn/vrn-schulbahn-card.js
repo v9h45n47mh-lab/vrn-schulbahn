@@ -127,4 +127,6 @@ class VrnSchulbahnCard extends HTMLElement {
     root.replaceChildren(style, card);
   }
 }
-customElements.define("vrn-schulbahn-card", VrnSchulbahnCard);
+if (!customElements.get("vrn-schulbahn-card")) {
+  customElements.define("vrn-schulbahn-card", VrnSchulbahnCard);
+}
